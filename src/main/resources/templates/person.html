@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>主页</title>
+    <script src="js/vue.js"></script>
+    <script src="js/axios.min.js"></script>
+    <link rel="stylesheet" href="css/index.css">
+    <script src="js/index.js"></script>
+    <style>
+        .imgItem{
+            float:left;
+            margin-left: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div id="box">
+        <el-form :rules="rules" ref="userinfo" :model="userinfo" label-width="80px">
+            <el-form-item label="密码" prop="password">
+                <el-input type="password" v-model="userinfo.password"></el-input>
+            </el-form-item>
+            <el-form-item label="确认密码" prop="checkPass">
+                <el-input type="password" v-model="userinfo.checkPass"></el-input>
+            </el-form-item>
+            <el-form-item label="姓名" prop="name">
+                <el-input v-model="userinfo.name"></el-input>
+            </el-form-item>
+            <el-form-item label="电话" prop="tel">
+                <el-input v-model="userinfo.tel"></el-input>
+            </el-form-item>
+            <el-form-item label="邮箱" prop="email">
+                <el-input v-model="userinfo.email"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="save('userinfo')">保存</el-button>
+            </el-form-item>
+        </el-form>
+    </div>
+<script>
+    new Vue({
+        el:"#box",
+        data() {
+            var validatePass = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入密码'));
+                } else {
+                    if (this.userinfo.checkPass !== '') {
+                        this.$refs.userinfo.validateField('checkPass');
+                    }
+                    callback();
+                }
+            };
+            var validatePass2 = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请再次输入密码'));
+                } else if (value !== this.userinfo.password) {
+                    callback(new Error('两次输入密码不一致!'));
+                } else {
+                    callback();
+                }
+            };
+            return {
+                userinfo: {
+                    password: '',
+                    checkPass: ''
+                },
+                file:{},
+                rules: {
+                    password: [
+                        { validator: validatePass, trigger: 'blur' }
+                    ],
+                    checkPass: [
+                        { validator: validatePass2, trigger: 'blur' }
+                    ],
+                    name: [
+                        { required: true, message: '姓名不能为空', trigger: 'blur' },
+                        { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur'}
+                    ],
+                    tel: [
+                        { required: true, message: '电话不能为空！', trigger: 'blur' },
+                        { min: 3, max: 14, message: '长度在 3 到 14 个字符', trigger: 'blur'}
+                    ],
+                    email: [
+                        { required: true, message: '邮箱不能为空！', trigger: 'blur' },
+                        { min: 12, max: 30, message: '长度在 12 到 30 个字符', trigger: 'blur'}
+                    ]
+                }
+            };
+        },
+        methods:{
+            getPersonMsg:function () {
+                var that = this;
+                axios.get("getPersonMsg").then(function(result){
+                    if(result.data.status){
+                        that.userinfo = result.data.object;
+                    }else{
+                        that.$message.error(result.data.message);
+                    }
+                });
+            },
+            save:function (userinfo) {
+                this.$refs[userinfo].validate((valid) => {
+                    if (valid) {
+                        var that = this;
+                        //获得要修改的头像
+                        var file = this.file;
+                        //获得用户修改后的信息
+                        var userinfo = this.userinfo;
+                        var userJson = JSON.stringify(userinfo);
+                        var formData = new FormData();
+                        formData.append("userJson",userJson);
+                        formData.append("file",file);
+
+                        let option = {
+                            url:"updatePerson",
+                            method:"post",
+                            data:formData
+                        }
+                        axios(option).then(function(result){
+                            if(result.data.status){
+                                window.open("goInLogin");
+                            }else{
+                                that.$message.error(result.data.message);
+                            }
+                        });
+                    } else {
+                        alert('失败!');
+                    }
+                });
+            },
+            //vue获取用户选中的图片
+            putImg:function (param) {
+                this.file = param.file;
+            }
+        },
+        mounted:function () {
+            this.getPersonMsg();
+        }
+    })
+</script>
+</body>
+</html>

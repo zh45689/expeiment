@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>收藏实验</title>
+		<script src="js/vue.js"></script>
+		<script src="js/axios.min.js"></script>
+		<link rel="stylesheet" href="css/index.css">
+		<script src="js/index.js"></script>
+	</head>
+	<body>
+	<div id="box">
+		<el-table :data="expList" border style="width: 100%">
+			<el-table-column prop="ename" label="实验名称"></el-table-column>
+			<el-table-column prop="user.name" label="负责人"></el-table-column>
+			<el-table-column prop="etime" label="创建时间"></el-table-column>
+			<el-table-column prop="type.tname" label="实验类别"></el-table-column>
+			<el-table-column fixed="right" label="操作">
+				<template slot-scope="scope">
+					<el-button type="text" size="small" @click="openColPanel(scope.row.ecid)">取消收藏</el-button>
+					<el-button type="text" size="small" @click="openDetailPanel(scope.row.eid)">详情</el-button>
+					<el-button @click="exportExcel(scope.row.eid)" size="small" type="text">导出Excel</el-button>
+				</template>
+			</el-table-column>
+		</el-table>
+
+		<el-dialog title="取消收藏提示框" :visible.sync="noCollectionVisible" width="30%">
+			<span>确定取消收藏此实验么？</span>
+			<span slot="footer" class="dialog-footer">
+			    <el-button @click="noCollectionVisible = false">取 消</el-button>
+			    <el-button type="primary" @click="delCollection">确 定</el-button>
+			  </span>
+		</el-dialog>
+
+		<el-dialog title="实验详情" :visible.sync="detailVisible" width="45%">
+			<!--描述面板-->
+			<el-descriptions>
+				<el-descriptions-item label="实验名称">{{experiment.ename}}</el-descriptions-item>
+				<el-descriptions-item label="创建时间">{{experiment.etime}}</el-descriptions-item>
+				<el-descriptions-item label="负责人">{{experiment.user.name}}</el-descriptions-item>
+				<el-descriptions-item label="实验类别">{{experiment.type.tname}}</el-descriptions-item>
+			</el-descriptions>
+			<!--折叠面板-->
+			<el-collapse v-for="step in experiment.steps">
+				<el-collapse-item :title="step.sname">
+					<div>{{step.sdata}}</div>
+				</el-collapse-item>
+			</el-collapse>
+		</el-dialog>
+
+	</div>
+	<script>
+		new Vue({
+			el:"#box",
+			data:{
+				noCollectionVisible:false,
+				detailVisible:false,
+				eid:"",
+				ecid:"",
+				experiment:{
+					user:{name:""},
+					type:{tname:""},
+					steps:[]
+				},
+				expList:[]
+			},
+			methods:{
+				//查询所有我收藏的实验数据
+				selectAllExp:function(){
+					var that = this;
+					axios.get("selectMyCollection").then(function(result){
+						if(result.data.status){
+							that.expList = result.data.list;
+						}else{
+							that.$message.error(result.data.message);
+						}
+					});
+				},
+				//打开取消收藏提示框
+				openColPanel:function (ecid) {
+					this.noCollectionVisible = true;
+					this.ecid = ecid;
+				},
+				delCollection:function () {
+					var ecid = this.ecid;
+					var that = this;
+					axios.get("delCollection?ecid="+ecid).then(function(result){
+						if(result.data.status){
+							that.noCollectionVisible = false;
+							that.selectAllExp();
+						}else{
+							that.$message.error(result.data.message);
+						}
+					});
+				},
+				//打开详情面板
+				openDetailPanel:function (eid) {
+					var that = this;
+					axios.get("selectDetail?eid="+eid).then(function(result){
+						if(result.data.status){
+							that.experiment = result.data.object;
+							that.detailVisible = true;
+						}else{
+							that.$message.warning(result.data.message);
+						}
+					});
+				},
+				//导出实验数据到Excel表格
+				exportExcel:function (eid) {
+					var that = this;
+					axios.get("exportExcel?eid="+eid).then(function(result){
+						if(result.data.status){
+							that.$message.success("导出成功");
+						}else{
+							that.$message.warning(result.data.message);
+						}
+					});
+				}
+			},
+			mounted:function(){
+				this.selectAllExp();
+			}
+		})
+	</script>
+	</body>
+</html>

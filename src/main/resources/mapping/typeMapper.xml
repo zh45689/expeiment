@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zh.bootStart.dao.TypeDao">
+
+    <!-- 查询所有类别 -->
+    <select id="selectAllType" parameterType="Type" resultType="Type">
+        select t.*,u.name from
+            type as t,user as u
+        where
+            t.username = u.username
+    </select>
+
+    <!-- 创建实验类别 -->
+    <insert id="addType" parameterType="Type">
+        insert into type
+            (tid,tname,username,ttime)
+        value
+            (#{tid},#{tname},#{username},#{ttime})
+    </insert>
+
+    <!-- 修改实验类别 -->
+    <update id="editType" parameterType="Type">
+        update type set
+            tname = #{tname} ,ttime = #{ttime}, username = #{username}
+        where
+            tid = #{tid}
+    </update>
+
+    <!--删除实验类别-->
+    <delete id="delType" parameterType="java.lang.String">
+        delete from type where tid = #{tid}
+    </delete>
+
+</mapper>

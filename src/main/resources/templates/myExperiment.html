@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>我的实验</title>
+		<script src="js/vue.js"></script>
+		<script src="js/axios.min.js"></script>
+		<link rel="stylesheet" href="css/index.css">
+		<script src="js/index.js"></script>
+		<style type="text/css">
+			.el-input__inner,.el-textarea__inner{
+				width: 300px;
+			}
+			.upload-demo{
+				display: inline-block;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="box">
+			<el-button type="primary" @click="openAddPanel">创建实验</el-button>
+			<el-upload class="upload-demo":http-request="putExcel" :show-file-list="false">
+				<el-button type="primary">导入实验</el-button>
+			</el-upload>
+			<el-table :data="expList" border style="width: 100%">
+		    	<el-table-column prop="ename" label="实验名称"></el-table-column>
+		    	<el-table-column prop="user.name" label="负责人"></el-table-column>
+		    	<el-table-column prop="etime" label="创建时间"></el-table-column>
+		    	<el-table-column prop="type.tname" label="实验类别"></el-table-column>
+				<el-table-column fixed="right" label="操作">
+					<template slot-scope="scope">
+						<el-button v-if="scope.row.ispublish == 1" @click="publish(scope.row.eid)" size="small" type="text">发布</el-button>
+						<el-button @click="openDetailPanel(scope.row.eid)" size="small" type="text">详情</el-button>
+						<el-button @click="openDelPanel(scope.row.eid)" size="small" type="text">删除</el-button>
+						<el-button @click="openEditPanel(scope.row.eid)" size="small" type="text">修改</el-button>
+					</template>
+				</el-table-column>
+			</el-table>
+
+			<!--{ename:"",type:{tid:""},steps:[{sdata:""},..,{}]}-->
+			<el-drawer title="创建实验" :visible.sync="addVisible" width="30%">
+				<el-form ref="exp" :model="exp" label-width="80px">
+					<el-form-item label="实验名称">
+						<el-input v-model="exp.ename"></el-input>
+					</el-form-item>
+					<el-form-item label="实验名称">
+						<el-select v-model="exp.tid" placeholder="请选择">
+							<el-option v-for="type in typeList" :label="type.tname" :value="type.tid"></el-option>
+						</el-select>
+					</el-form-item>
+					<el-form-item v-for="(step, index) in exp.steps" :label="'步骤' + (index+1)">
+						<el-input type="textarea" v-model="step.sdata"></el-input>
+						<el-button @click.prevent="removeStep(step)">删除</el-button>
+					</el-form-item>
+					<el-form-item>
+						<el-button @click="addStep">增加实验步骤</el-button>
+						<el-button type="primary" @click="addExp">创建</el-button>
+					</el-form-item>
+				</el-form>
+			</el-drawer>
+
+			<el-drawer title="编辑实验" :visible.sync="editVisible" width="30%">
+				<el-form ref="exp" :model="exp" label-width="80px">
+					<el-form-item label="实验名称">
+						<el-input v-model="exp.ename"></el-input>
+					</el-form-item>
+					<el-form-item label="实验类别">
+						<el-select v-model="exp.type.tid" placeholder="请选择">
+							<el-option v-for="type in typeList" :label="type.tname" :value="type.tid"></el-option>
+						</el-select>
+					</el-form-item>
+					<el-form-item v-for="(step, index) in exp.steps" :label="'步骤' + (index+1)">
+						<el-input type="textarea" v-model="step.sdata"></el-input>
+					</el-form-item>
+					<el-form-item>
+						<el-button @click="editExp">保存</el-button>
+					</el-form-item>
+				</el-form>
+			</el-drawer>
+
+			<el-dialog title="删除提示框" :visible.sync="delVisible" width="30%">
+				<span>确定删除此实验么？</span>
+				<span slot="footer" class="dialog-footer">
+			    <el-button @click="delVisible = false">取 消</el-button>
+			    <el-button type="primary" @click="delExp">确 定</el-button>
+			  </span>
+			</el-dialog>
+
+			<el-dialog title="实验详情" :visible.sync="detailVisible" width="45%">
+				<!--描述面板-->
+				<el-descriptions>
+					<el-descriptions-item label="实验名称">{{exp.ename}}</el-descriptions-item>
+					<el-descriptions-item label="创建时间">{{exp.etime}}</el-descriptions-item>
+					<el-descriptions-item label="负责人">{{exp.user.name}}</el-descriptions-item>
+					<el-descriptions-item label="实验类别">{{exp.type.tname}}</el-descriptions-item>
+				</el-descriptions>
+				<!--折叠面板-->
+				<el-collapse v-for="step in exp.steps">
+					<el-collapse-item :title="step.sname">
+						<div>{{step.sdata}}</div>
+					</el-collapse-item>
+				</el-collapse>
+			</el-dialog>
+
+		</div>
+		<script>
+			new Vue({
+				el:"#box",
+				data:{
+					addVisible:false,
+					delVisible:false,
+					detailVisible:false,
+					editVisible:false,
+					eid:"",
+					exp:{
+						user:{name:""},
+						type:{tid:""},
+						steps:[
+							{sdata:""}
+						]
+					},
+					expList:[],
+					typeList:[]
+				},
+				methods:{
+					//查询所有实验数据
+					selectAllType:function(){
+						var that = this;
+						axios.get("selectAllType").then(function(result){
+							if(result.data.status){
+								that.typeList = result.data.list;
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					//查询所有实验数据
+					selectMyExp:function(){
+						var that = this;
+						axios.get("selectMyExp").then(function(result){
+							if(result.data.status){
+								that.expList = result.data.list;
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					//发布我的实验
+					publish:function(eid){
+						var that = this;
+						axios.get("editExpPublish?eid="+eid).then(function(result){
+							if(result.data.status){
+								that.selectMyExp();
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					//打开创建实验面板
+					openAddPanel:function () {
+						this.addVisible = true;
+					},
+					//添加实验步骤
+					addStep() {
+						this.exp.steps.push({
+							sdata: ''
+						});
+					},
+					//删除实验步骤
+					removeStep(item) {
+						var index = this.exp.steps.indexOf(item)
+						if (index !== -1) {
+							this.exp.steps.splice(index, 1)
+						}
+					},
+					//创建实验
+					addExp:function () {
+						var exp = this.exp;
+						var expJson = JSON.stringify(exp);
+						var formData = new FormData();
+						formData.append("expJson",expJson);
+						let options = {
+							url:"addExp",
+							method:"post",
+							data:formData
+						}
+						var that = this;
+						axios(options).then(function(result){
+							if(result.data.status){
+								that.selectMyExp();
+								that.addVisible = false;
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					//打开删除面板
+					openDelPanel:function(eid){
+						this.delVisible = true;
+						this.eid = eid;
+					},
+					//删除实验
+					delExp:function(){
+						var eid = this.eid;
+						var that = this;
+						axios.get("delExp?eid="+eid).then(function(result){
+							if(result.data.status){
+								that.selectMyExp();
+								that.delVisible = false;
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					//打开详情面板
+					openDetailPanel:function (eid) {
+						var that = this;
+						axios.get("selectDetail?eid="+eid).then(function(result){
+							if(result.data.status){
+								that.exp = result.data.object;
+								that.detailVisible = true;
+							}else{
+								that.$message.warning(result.data.message);
+							}
+						});
+					},
+					//打开编辑面板
+					openEditPanel:function(eid){
+						var that = this;
+						//因为初识页面查询，只查询所有实验数据，未查询步骤，scope.row获取修改数据对象时，是没有steps的
+						//解决方式: 利用实验eid查询此实验详情，反写数据到编辑面板中
+						axios.get("selectDetail?eid="+eid).then(function(result){
+							if(result.data.status){
+								that.exp = result.data.object;
+								that.editVisible = true;
+							}else{
+								that.$message.warning(result.data.message);
+							}
+						});
+					},
+					//修改实验内容
+					editExp:function(){
+						var exp = this.exp;
+						var that = this;
+						var expJson = JSON.stringify(exp);
+						var formData = new FormData();
+						formData.append("expJson",expJson);
+						let options = {
+							url:"editExp",
+							method:"post",
+							data:formData
+						}
+						axios(options).then(function(result){
+							if(result.data.status){
+								that.selectMyExp();
+								that.editVisible = false;
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					//导出实验数据到Excel表格
+					exportExcel:function (eid) {
+						var that = this;
+						axios.get("exportExcel?eid="+eid).then(function(result){
+							if(result.data.status){
+								that.$message.success("导出成功");
+							}else{
+								that.$message.warning(result.data.message);
+							}
+						});
+					},
+					//向vue对象注入要上传的文件
+					putExcel:function(param) {
+						var that = this;
+						var formData = new FormData();
+						formData.append("file",param.file);
+
+						let option = {
+							url:"importExcel",
+							method:"post",
+							data:formData
+						}
+						axios(option).then(function(result){
+							if(result.data.status){
+								that.$message.success("实验录入成功");
+								that.selectMyExp();
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					}
+				},
+				beforeMount:function(){
+					this.selectAllType();
+				},
+				mounted:function(){
+					this.selectMyExp();
+				}
+			})
+		</script>
+	</body>
+</html>

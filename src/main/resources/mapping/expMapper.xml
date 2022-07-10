@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zh.bootStart.dao.ExperimentDao">
+
+    <!-- 结果映射（查询结果的封装规则） -->
+    <resultMap id="allExpMap" type="com.zh.bootStart.bean.Experiment">
+        <id property="eid" column="eid"/>
+        <result property="ename" column="ename" />
+        <result property="etime" column="etime" />
+        <result property="ecid" column="ecid" />
+        <result property="ispublish" column="ispublish" />
+        <association property="user" javaType="com.zh.bootStart.bean.User">
+            <id property="username" column="username" />
+            <result property="name" column="name" />
+        </association>
+        <association property="type" javaType="com.zh.bootStart.bean.Type">
+            <id property="tid" column="tid" />
+            <result property="tname" column="tname" />
+        </association>
+    </resultMap>
+
+    <!-- 结果映射（查询结果的封装规则） -->
+    <resultMap id="expAndStepsMap" type="com.zh.bootStart.bean.Experiment">
+        <id property="eid" column="eid"/>
+        <result property="ename" column="ename" />
+        <result property="etime" column="etime" />
+        <association property="user" javaType="com.zh.bootStart.bean.User">
+            <id property="username" column="username" />
+            <result property="name" column="name" />
+        </association>
+        <association property="type" javaType="com.zh.bootStart.bean.Type">
+            <id property="tid" column="tid" />
+            <result property="tname" column="tname" />
+        </association>
+        <collection property="steps" ofType="com.zh.bootStart.bean.Step">
+            <id property="sid" column="sid" />
+            <result property="esid" column="esid"/>
+            <result property="eid" column="eid"/>
+            <result property="sname" column="sname" />
+            <result property="sdata" column="sdata" />
+        </collection>
+    </resultMap>
+
+    <resultMap id="stepMap" type="com.zh.bootStart.bean.Step">
+        <id property="sid" column="sid"/>
+        <result property="esid" column="esid" />
+    </resultMap>
+
+
+    <!-- 查询所有实验: 非本人创建 | 本人未收藏 | 已发布 -->
+    <select id="selectAllExp" parameterType="Condition" resultMap="allExpMap">
+        select e.*,t.tname,u.name from
+            experiment as e,`user` as u,type as t
+        <where>
+            e.username = u.username
+            and e.tid = t.tid
+            and e.username != #{username}
+            and not exists(
+                select 1
+                    from
+                exp_col as ec
+                    where
+                ec.username = #{username} and ec.eid = e.eid)
+            and e.ispublish = 0
+            <if test="name != null">
+                and u.name like concat('%',#{name},'%')
+            </if>
+            <if test="ename != null">
+                and e.ename like concat('%',#{ename},'%')
+            </if>
+            <if test="etime != null">
+                and e.etime like concat('%',#{etime},'%')
+            </if>
+            <if test="tname != null">
+                and t.tname like concat('%',#{tname},'%')
+            </if>
+        </where>
+            limit #{currentPage},#{pageSize}
+    </select>
+
+    <!-- 查询所有非本人创建 | 本人未收藏 的实验数据总条数 -->
+    <select id="selectCountExp" parameterType="java.lang.String" resultType="java.lang.Long">
+        select count(1) as total from
+        experiment as e,`user` as u,type as t
+        where
+            e.username = u.username
+            and e.tid = t.tid
+            and e.username != #{username}
+            and not exists(
+                select 1
+                    from
+                exp_col as ec
+                    where
+                ec.username = #{username} and ec.eid = e.eid)
+    </select>
+
+    <!--收藏实验-->
+    <!--
+    如果Collection，程序默认找到java.util.Collection,建议改名Collections
+    如果不想改名，parameterType="com.qf.bootStart.bean.Collection"
+    -->
+    <insert id="addCollection" parameterType="Collections">
+        insert into exp_col
+            (ecid,eid,username)
+        value
+            (#{ecid},#{eid},#{username})
+    </insert>
+
+    <!--查询实验详情-->
+    <select id="selectDetail" parameterType="java.lang.String" resultMap="expAndStepsMap">
+        select e.*,s.*,u.`name`,t.tname,es.esid
+            from
+        experiment as e,step as s,e_step as es,user as u,type as t
+            where
+                e.eid = es.eid
+                and s.sid = es.sid
+                and e.username = u.username
+                and e.tid = t.tid
+                and e.eid = #{eid}
+                order by s.sname
+    </select>
+
+    <!-- 查询所有我收藏的实验 -->
+    <select id="selectMyCollection" parameterType="java.lang.String" resultMap="allExpMap">
+        select e.*,t.tname,u.name,ec.ecid
+            from
+        experiment as e,user as u,type as t,exp_col as ec
+            where
+        e.username = u.username
+        and e.tid = t.tid
+        and ec.eid = e.eid
+        and ec.username = #{username}
+    </select>
+
+    <!-- 取消收藏实验 -->
+    <delete id="delCollection" parameterType="java.lang.String">
+        delete from exp_col where ecid = #{ecid}
+    </delete>
+
+    <!-- 查询我的所有实验 -->
+    <select id="selectMyExp" parameterType="java.lang.String" resultMap="allExpMap">
+        select e.*,t.tname,u.name from
+            experiment as e,`user` as u,type as t
+        where
+            e.username = u.username
+            and e.tid = t.tid
+            and e.username = #{username}
+    </select>
+
+    <!-- 发布实验: 根据实验主键修改 发布状态 -->
+    <update id="editExpPublish" parameterType="java.lang.String">
+        update experiment set ispublish = 0 where eid = #{eid}
+    </update>
+
+    <!-- 新增实验数据 -->
+    <insert id="insertExp" parameterType="Experiment">
+        insert into experiment
+            (eid,ename,username,tid,etime,ispublish)
+        value
+            (#{eid},#{ename},#{username},#{tid},#{etime},1)
+    </insert>
+
+    <!-- 新增步骤数据 -->
+    <insert id="insertStep" parameterType="Step">
+        insert into step
+            (sid,sname,sdata)
+        value
+            (#{sid},#{sname},#{sdata})
+    </insert>
+
+    <!-- 新增实验步骤关联表数据 -->
+    <insert id="insertExpAndStep" parameterType="Step">
+        insert into e_step
+            (esid,eid,sid)
+        value
+            (#{esid},#{eid},#{sid})
+    </insert>
+
+    <!-- 删除实验表数据 -->
+    <delete id="delExp" parameterType="java.lang.String">
+        delete from experiment where eid = #{eid}
+    </delete>
+
+    <!-- 删除所有步骤主键 -->
+    <delete id="delStep" parameterType="java.lang.String">
+        delete from step where sid = #{sid}
+    </delete>
+
+    <!-- 删除所有 实验关联步骤主键 -->
+    <delete id="delExpAndStep" parameterType="java.lang.String">
+        delete from e_step where esid = #{esid}
+    </delete>
+
+    <!-- 查询所有步骤主键与 实验关联步骤主键 -->
+    <select id="selectSteps" parameterType="java.lang.String" resultMap="stepMap">
+        select s.sid,es.esid from
+            experiment as e,step as s,e_step as es
+        WHERE
+            e.eid = es.eid
+            and s.sid = es.sid
+            and e.eid = #{eid}
+    </select>
+
+    <!--编辑实验 -->
+    <update id="editExp" parameterType="Experiment">
+        update experiment set
+            ename = #{ename},tid = #{tid},etime = #{etime}
+        where eid = #{eid}
+    </update>
+
+    <!-- 编辑实验步骤 -->
+    <update id="editStep" parameterType="Step">
+         update step set
+            sdata = #{sdata}
+            where sid = #{sid}
+    </update>
+
+    <!-- 根据类别名称查询类别主键 -->
+    <select id="selectTidByTname" parameterType="java.lang.String" resultType="java.lang.String">
+        select tid from type where tname = #{tname}
+    </select>
+
+</mapper>

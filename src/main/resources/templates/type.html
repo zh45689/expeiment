@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>实验类别</title>
+		<script src="js/vue.js"></script>
+		<script src="js/axios.min.js"></script>
+		<link rel="stylesheet" href="css/index.css">
+		<script src="js/index.js"></script>
+		<style type="text/css">
+			.el-input__inner,.el-textarea__inner{
+				width: 80%;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="box">
+			<el-button type="primary" @click="openAddPanel">创建实验类别</el-button>
+			<el-table :data="typeList" border style="width: 100%">
+				<el-table-column prop="tname" label="实验名称"></el-table-column>
+				<el-table-column prop="name" label="创建人"></el-table-column>
+				<el-table-column prop="ttime" label="创建时间"></el-table-column>
+				<el-table-column fixed="right" label="操作">
+					<template slot-scope="scope">
+						<el-button @click="openEditDialog(scope.row)" size="small">编辑</el-button>
+						<el-button @click="openDelDialog(scope.row.tid)" size="small">删除</el-button>
+					</template>
+				</el-table-column>
+			</el-table>
+
+			<el-dialog title="创建实验类别" :visible.sync="addVisible" width="30%">
+				<el-form ref="type" :model="type" label-width="80px">
+					<el-form-item label="实验名称">
+						<el-input v-model="type.tname"></el-input>
+					</el-form-item>
+				</el-form>
+				<span slot="footer" class="dialog-footer">
+			    <el-button @click="addVisible = false">取 消</el-button>
+			    <el-button type="primary" @click="addType">确 定</el-button>
+			  </span>
+			</el-dialog>
+
+			<el-dialog title="编辑提示框" :visible.sync="editVisible" width="30%">
+				<el-form ref="type" :model="type" label-width="80px">
+					<el-form-item label="实验名称">
+						<el-input v-model="type.tname"></el-input>
+					</el-form-item>
+				</el-form>
+				<span slot="footer" class="dialog-footer">
+			    <el-button @click="editVisible = false">取 消</el-button>
+			    <el-button type="primary" @click="editType">确 定</el-button>
+			  </span>
+			</el-dialog>
+
+			<el-dialog title="删除提示框" :visible.sync="delVisible" width="30%">
+				<span>确定删除此类别么？</span>
+				<span slot="footer" class="dialog-footer">
+			    <el-button @click="delVisible = false">取 消</el-button>
+			    <el-button type="primary" @click="delType">确 定</el-button>
+			  </span>
+			</el-dialog>
+
+		</div>
+		<script>
+			new Vue({
+				el:"#box",
+				data:{
+					addVisible:false,
+					editVisible:false,
+					delVisible:false,
+					tid:"",
+					type:{},
+					typeList:[]
+				},
+				methods:{
+					//查询所有实验数据
+					selectAllType:function(){
+						var that = this;
+						axios.get("selectAllType").then(function(result){
+							if(result.data.status){
+								that.typeList = result.data.list;
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					//打开创建面板
+					openAddPanel:function(){
+						this.addVisible = true;
+						this.type = {};
+					},
+					//创建类别
+					addType:function(){
+						var that = this;
+						var typeJson = JSON.stringify(this.type);
+						var formData = new FormData();
+						formData.append("typeJson",typeJson)
+						let options = {
+							url:"addType",
+							method:"post",
+							data:formData
+						}
+						axios(options).then(function(result){
+							if(result.data.status){
+								that.addVisible = false;
+								that.selectAllType();
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					openEditDialog:function(type){
+						this.type = type;
+						this.editVisible = true;
+					},
+					editType:function(tid){
+						var that = this;
+						var typeJson = JSON.stringify(this.type);
+						var formData = new FormData();
+						formData.append("typeJson",typeJson)
+						let options = {
+							url:"editType",
+							method:"post",
+							data:formData
+						}
+						axios(options).then(function(result){
+							if(result.data.status){
+								that.editVisible = false;
+								that.selectAllType();
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					},
+					openDelDialog:function(tid){
+						this.tid = tid;
+						this.delVisible = true;
+					},
+					delType:function(){
+						var tid = this.tid;
+						var that = this;
+						axios.get("delType?tid="+tid).then(function(result){
+							if(result.data.status){
+								that.delVisible = false;
+								that.selectAllType();
+							}else{
+								that.$message.error(result.data.message);
+							}
+						});
+					}
+				},
+				mounted:function(){
+					this.selectAllType();
+				}
+			})
+		</script>
+	</body>
+</html>
